@@ -1,0 +1,19 @@
+// basic arithmatic (+, -, *, /, ^, %)
+
+2^4 // 16
+
+4 % 2 // 0
+
+// basic operators
+
+2 == 2 //  true (1)
+
+5 >= 6 // false (0)
+
+// the operators are '==', '!=', '<=', '>=', '<', '>', 'and', 'not', 'or'
+
+// variables are declared like this: var name = value
+
+var x = 2
+
+// they can be strings, lists, numbers and functions
