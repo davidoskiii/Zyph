@@ -88,6 +88,7 @@ print(list) // prints [1, 2, 4]
 When you remove an element you are removing it by its index.
 
 ## Booleans
+
 Booleans represent true or false values. They are used to control flow within your code.
 Zyph dosn't have true of false values but they get rappresented by 1 (true) and 0 (false).
 If you want to use true and false there are two constants in the language.
@@ -184,6 +185,7 @@ for (index = starting-position, to ending-position, step step-value) {
     body
 }
 ```
+
 The step value is option and, by default, will be 1.
 
 ```
@@ -203,6 +205,7 @@ try {
     catch-body
 }
 ```
+
 As right now you can't specify the time of exception you are tring to catch but i'm currently working on it.
 
 ### continue, break and return
@@ -225,6 +228,7 @@ function sum(n1, n2) {
 ```
 
 ## Newlines and semicolons
+
 In this language newlines are used as separators between commands or expressions. You don't need to use semicolon at the end of a command as they are only used for single line statements but if you want you can use them
 
 ```
@@ -259,4 +263,5 @@ cp -r zyph/ ~/.vscode/extensions
 ```
 
 to automatically move the folder.
+
 Then restart Vs Code or open the Command Palette pressing <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> and write "Developer: Reload Window".
