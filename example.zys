@@ -1,19 +1,17 @@
-// basic arithmatic (+, -, *, /, ^, %)
 
-2^4 // 16
+try {
+    var number = num(input("Tell me a number: "))
+} catch {
+    print("The value provided is not a number")
+    quit()
+}
 
-4 % 2 // 0
+function factorial(n) {
+    if (n == 0 or n == 1) {
+        return 1
+    } else {
+        return n * factorial(n - 1)
+    }
+}
 
-// basic operators
-
-2 == 2 //  true (1)
-
-5 >= 6 // false (0)
-
-// the operators are '==', '!=', '<=', '>=', '<', '>', 'and', 'not', 'or'
-
-// variables are declared like this: var name = value
-
-var x = 2
-
-// they can be strings, lists, numbers and functions
+print("The factorial of " + str(number) + " is " + str(factorial(number)))

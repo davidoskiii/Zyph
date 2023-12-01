@@ -692,62 +692,6 @@ class Parser:
             self.advance()
             return res.success(BreakNode(pos_start, self.current_tok.pos_start.copy()))
 
-        if self.current_tok.matches(TT_KEYWORD, 'try'):
-            res.register_advancement()
-            self.advance()
-
-            if not self.current_tok.type == TT_LCURLY:
-                return res.failure(InvalidSyntaxError(
-                    self.current_tok.pos_start, self.current_tok.pos_end,
-                    "Expected '{'"
-                ))
-
-            res.register_advancement()
-            self.advance()
-
-            try_body = res.register(self.statements())
-            if res.error: return res
-
-            if not self.current_tok.type == TT_RCURLY:
-                return res.failure(InvalidSyntaxError(
-                    self.current_tok.pos_start, self.current_tok.pos_end,
-                    "Expected '}'"
-                ))
-
-            res.register_advancement()
-            self.advance()
-
-            if not self.current_tok.matches(TT_KEYWORD, 'catch'):
-                return res.failure(InvalidSyntaxError(
-                    self.current_tok.pos_start, self.current_tok.pos_end,
-                    "The try statement is incomplete, expected 'catch'"
-                ))
-
-            res.register_advancement()
-            self.advance()
-
-            if not self.current_tok.type == TT_LCURLY:
-                return res.failure(InvalidSyntaxError(
-                    self.current_tok.pos_start, self.current_tok.pos_end,
-                    "Expected '{'"
-                ))
-            res.register_advancement()
-            self.advance()
-
-            catch_body = res.register(self.statements())
-            if res.error: return res
-
-            if not self.current_tok.type == TT_RCURLY:
-                return res.failure(InvalidSyntaxError(
-                    self.current_tok.pos_start, self.current_tok.pos_end,
-                    "Expected '}'"
-                ))
-
-            res.register_advancement()
-            self.advance()
-
-            return res.success(TryCatchNode(try_body, catch_body))
-
         expr = res.register(self.expr())
         if res.error:
             return res.failure(InvalidSyntaxError(
@@ -755,6 +699,70 @@ class Parser:
                 "Expected 'return', 'continue', 'break', 'var', 'if', 'for', 'while', 'function', int, float, identifier, '+', '-', '(', '[', 'or', 'and' or 'not'"
             ))
         return res.success(expr)
+
+    def try_expr(self):
+        res = ParseResult()
+
+        if not self.current_tok.matches(TT_KEYWORD, 'try'):
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "Expected 'try'"
+            ))
+
+        res.register_advancement()
+        self.advance()
+
+        if not self.current_tok.type == TT_LCURLY:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "Expected '{'"
+            ))
+
+        res.register_advancement()
+        self.advance()
+
+        try_body = res.register(self.statements())
+        if res.error: return res
+
+        if not self.current_tok.type == TT_RCURLY:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "Expected '}'"
+            ))
+
+        res.register_advancement()
+        self.advance()
+
+        if not self.current_tok.matches(TT_KEYWORD, 'catch'):
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "The try statement is incomplete, expected 'catch'"
+            ))
+
+        res.register_advancement()
+        self.advance()
+
+        if not self.current_tok.type == TT_LCURLY:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "Expected '{'"
+            ))
+        res.register_advancement()
+        self.advance()
+
+        catch_body = res.register(self.statements())
+        if res.error: return res
+
+        if not self.current_tok.type == TT_RCURLY:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "Expected '}'"
+            ))
+
+        res.register_advancement()
+        self.advance()
+
+        return res.success(TryCatchNode(try_body, catch_body))
 
     def if_expr(self):
         res = ParseResult()
@@ -1169,6 +1177,11 @@ class Parser:
             if_expr = res.register(self.if_expr())
             if res.error: return res
             return res.success(if_expr)
+
+        elif tok.matches(TT_KEYWORD, 'try'):
+            try_expr = res.register(self.try_expr())
+            if res.error: return res
+            return res.success(try_expr)
 
         elif tok.matches(TT_KEYWORD, 'for'):
             for_expr = res.register(self.for_expr())
@@ -2457,6 +2470,117 @@ class BuiltInFunction(BaseFunction):
         return RTResult().success(Number(result_))
     execute_random_intiger.arg_names = ["valueA", "valueB"]
 
+    def execute_is_prime(self, exec_ctx):
+        number_ = exec_ctx.symbol_table.get("number")
+
+        if not (isinstance(number_, Number)):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "Argument must be a number",
+                exec_ctx
+            ))
+
+        prime_flag = 0
+
+        if (number_.value > 1):
+            for i in range(2, int(math.sqrt(number_.value)) + 1):
+                if (number_.value % i == 0):
+                    prime_flag = 1
+                    break
+            if (prime_flag == 0):
+                return RTResult().success(Number.true)
+            else:
+                return RTResult().success(Number.false)
+        else:
+            return RTResult().success(Number.false)
+    execute_is_prime.arg_names = ["number"]
+
+    def execute_list_sum(self, exec_ctx):
+        list_ = exec_ctx.symbol_table.get("list")
+
+        if not (isinstance(list_, List)):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "Argument must be a list",
+                exec_ctx
+            ))
+
+        try:
+            sum_ = sum([x.value for x in list_.elements])
+        except TypeError as e:
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                f"The list can only contain numbers",
+                exec_ctx
+            ))
+
+        return RTResult().success(Number(sum_))
+    execute_list_sum.arg_names = ["list"]
+
+    def execute_slice(self, exec_ctx):
+        """Slices a list"""
+        list_ = exec_ctx.symbol_table.get("list")
+        start_ = exec_ctx.symbol_table.get("start")
+        end_ = exec_ctx.symbol_table.get("end")
+
+        if not (isinstance(list_, List)):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "First argument must be a list",
+                exec_ctx
+            ))
+
+        if not isinstance(start_.value, int):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "Second argument must be an integer",
+                exec_ctx
+            ))
+        if not isinstance(end_.value, int):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "Third argument must be an integer",
+                exec_ctx
+            ))
+
+        sliced_list = list_.elements[start_.value : end_.value]
+
+        return RTResult().success(List(sliced_list))
+    execute_slice.arg_names = ["list", "start", "end"]
+
+    def execute_insert(self, exec_ctx):
+        """Adds a new element to a list using the python insert() method"""
+        list_ = exec_ctx.symbol_table.get("list")
+        index_ = exec_ctx.symbol_table.get("index")
+        value_ = exec_ctx.symbol_table.get("value")
+        if not (isinstance(list_, List)):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "First argument must be a list",
+                exec_ctx
+            ))
+
+        if not isinstance(index_, Number):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "Second argument must be an integer",
+                exec_ctx
+            ))
+        if not isinstance(value_, Value):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "Third argument must be a number or string",
+                exec_ctx
+            ))
+
+        try:
+            list_.elements.insert(index_.value, value_.value)
+        except:
+            list_.elements.insert(index_.value, value_)
+
+        return RTResult().success(Number.null)
+    execute_insert.arg_names = ["list", "index", "value"]
+
     def execute_run(self, exec_ctx):
         fn = exec_ctx.symbol_table.get("fn")
 
@@ -2517,6 +2641,9 @@ BuiltInFunction.is_number              = BuiltInFunction("is_number")
 BuiltInFunction.is_string              = BuiltInFunction("is_string")
 BuiltInFunction.is_list                = BuiltInFunction("is_list")
 BuiltInFunction.is_function            = BuiltInFunction("is_function")
+BuiltInFunction.is_prime               = BuiltInFunction("is_prime")
+BuiltInFunction.slice                  = BuiltInFunction("slice")
+BuiltInFunction.insert                 = BuiltInFunction("insert")
 BuiltInFunction.append                 = BuiltInFunction("append")
 BuiltInFunction.pop                    = BuiltInFunction("pop")
 BuiltInFunction.extend                 = BuiltInFunction("extend")
@@ -2530,6 +2657,7 @@ BuiltInFunction.to_float               = BuiltInFunction("to_float")
 BuiltInFunction.absolute_value         = BuiltInFunction("absolute_value")
 BuiltInFunction.smallest_in_list       = BuiltInFunction("smallest_in_list")
 BuiltInFunction.largest_in_list        = BuiltInFunction("largest_in_list")
+BuiltInFunction.list_sum               = BuiltInFunction("list_sum")
 BuiltInFunction.range                  = BuiltInFunction("range")
 BuiltInFunction.factorial              = BuiltInFunction("factorial")
 BuiltInFunction.raise_error            = BuiltInFunction("raise_error")
@@ -2859,6 +2987,9 @@ global_symbol_table.set("is_num", BuiltInFunction.is_number)
 global_symbol_table.set("is_str", BuiltInFunction.is_string)
 global_symbol_table.set("is_list", BuiltInFunction.is_list)
 global_symbol_table.set("is_function", BuiltInFunction.is_function)
+global_symbol_table.set("is_prime", BuiltInFunction.is_prime)
+global_symbol_table.set("slice", BuiltInFunction.slice)
+global_symbol_table.set("insert", BuiltInFunction.insert)
 global_symbol_table.set("append", BuiltInFunction.append)
 global_symbol_table.set("pop", BuiltInFunction.pop)
 global_symbol_table.set("extend", BuiltInFunction.extend)
@@ -2872,6 +3003,7 @@ global_symbol_table.set("float", BuiltInFunction.to_float)
 global_symbol_table.set("abs", BuiltInFunction.absolute_value)
 global_symbol_table.set("min", BuiltInFunction.smallest_in_list)
 global_symbol_table.set("max", BuiltInFunction.largest_in_list)
+global_symbol_table.set("sum", BuiltInFunction.list_sum)
 global_symbol_table.set("range", BuiltInFunction.range)
 global_symbol_table.set("factorial", BuiltInFunction.factorial)
 global_symbol_table.set("raise_error", BuiltInFunction.raise_error)
