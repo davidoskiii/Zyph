@@ -1961,7 +1961,22 @@ class Dictionary(Value):
         return copy
 
     def dived_by(self, other):
+        if isinstance(other, Dictionary):
+            return None, RTError(
+                other.pos_start, other.pos_end,
+                f"You can't use another dictionary as a key",
+                self.context
+            )
+
+        if isinstance(other, List):
+            return None, RTError(
+                other.pos_start, other.pos_end,
+                f"You can't use a list as a key",
+                self.context
+            )
+
         key = other.value
+
         if key in self.elements:
             return self.elements[key], None
         else:
@@ -1987,6 +2002,21 @@ class Dictionary(Value):
             return None, Value.illegal_operation(self, other)
 
     def subbed_by(self, other):
+
+        if isinstance(other, Dictionary):
+            return None, RTError(
+                other.pos_start, other.pos_end,
+                f"You can't use another dictionary as a key",
+                self.context
+            )
+
+        if isinstance(other, List):
+            return None, RTError(
+                other.pos_start, other.pos_end,
+                f"You can't use a list as a key",
+                self.context
+            )
+
         key = other.value
         if key in self.elements:
             new_elements = self.elements.copy()
@@ -2230,6 +2260,109 @@ class BuiltInFunction(BaseFunction):
         listA.elements.extend(listB.elements)
         return RTResult().success(Number.null)
     execute_extend.arg_names = ["listA", "listB"]
+
+    def execute_check_key(self, exec_ctx):
+        dictionary = exec_ctx.symbol_table.get("dictionary")
+        key = exec_ctx.symbol_table.get("key")
+
+        if not isinstance(dictionary, Dictionary):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "Fist argument must be a dictionary",
+                exec_ctx
+            ))
+
+        if isinstance(key, (BuiltInFunction, Function, List, Dictionary)):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "You can only use numbers or strings as keys",
+                exec_ctx
+            ))
+
+        if key.value in dictionary.elements:
+            return RTResult().success(Number.true)
+        else:
+            return RTResult().success(Number.false)
+    execute_check_key.arg_names = ["dictionary", "key"]
+
+    def execute_merge(self, exec_ctx):
+        dictionary1 = exec_ctx.symbol_table.get("dictionary1")
+        dictionary2 = exec_ctx.symbol_table.get("dictionary2")
+
+        if not isinstance(dictionary1, Dictionary):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "Fist argument must be a dictionary",
+                exec_ctx
+            ))
+
+        if not isinstance(dictionary2, Dictionary):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "Second argument must be a dictionary",
+                exec_ctx
+            ))
+
+        combined_elements = {**dictionary1.elements, **dictionary2.elements}
+        return RTResult().success(Dictionary(combined_elements))
+    execute_merge.arg_names = ["dictionary1", "dictionary2"]
+
+    def execute_remove_key_value_pairs(self, exec_ctx):
+        dictionary = exec_ctx.symbol_table.get("dictionary")
+        key = exec_ctx.symbol_table.get("key")
+
+        if not isinstance(dictionary, Dictionary):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "Fist argument must be a dictionary",
+                exec_ctx
+            ))
+
+        if isinstance(key, (BuiltInFunction, Function, List, Dictionary)):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "You can only use numbers or strings as keys",
+                exec_ctx
+            ))
+
+        try:
+            del dictionary.elements[key.value]
+        except KeyError:
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                f"The key {key.value} is not present in the dictionary",
+                exec_ctx
+            ))
+        return RTResult().success(Dictionary(dictionary.elements))
+    execute_remove_key_value_pairs.arg_names = ["dictionary", "key"]
+
+    def execute_get_value_from_key(self, exec_ctx):
+        dictionary = exec_ctx.symbol_table.get("dictionary")
+        key = exec_ctx.symbol_table.get("key")
+
+        if not isinstance(dictionary, Dictionary):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "Fist argument must be a dictionary",
+                exec_ctx
+            ))
+
+        if isinstance(key, (BuiltInFunction, Function, List, Dictionary)):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "You can only use numbers or strings as keys",
+                exec_ctx
+            ))
+
+        value = dictionary.elements.get(key.value)
+        if value is None:
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                f"The key {key.value} does not exist in the dictionary",
+                exec_ctx
+            ))
+        return RTResult().success(value)
+    execute_get_value_from_key.arg_names = ["dictionary", "key"]
 
     def execute_sort(self, exec_ctx):
         list_ = exec_ctx.symbol_table.get("list")
@@ -2793,6 +2926,10 @@ BuiltInFunction.is_string              = BuiltInFunction("is_string")
 BuiltInFunction.is_list                = BuiltInFunction("is_list")
 BuiltInFunction.is_function            = BuiltInFunction("is_function")
 BuiltInFunction.is_prime               = BuiltInFunction("is_prime")
+BuiltInFunction.merge                  = BuiltInFunction("merge")
+BuiltInFunction.remove_key_value_pairs = BuiltInFunction("remove_key_value_pairs")
+BuiltInFunction.get_value_from_key     = BuiltInFunction("get_value_from_key")
+BuiltInFunction.check_key              = BuiltInFunction("check_key")
 BuiltInFunction.slice                  = BuiltInFunction("slice")
 BuiltInFunction.insert                 = BuiltInFunction("insert")
 BuiltInFunction.append                 = BuiltInFunction("append")
@@ -2910,6 +3047,20 @@ class Interpreter:
         for key_node, value_node in node.key_value_pairs:
             key = res.register(self.visit(key_node, context))
             if res.should_return(): return res
+
+            if isinstance(key, Dictionary):
+                return res.failure(RTError(
+                    key_node.pos_start, key_node.pos_end,
+                    "You can't use another dictionary as a key",
+                    context
+                ))
+
+            if isinstance(key, List):
+                return res.failure(RTError(
+                    key_node.pos_start, key_node.pos_end,
+                    "You can't use a list as a key",
+                    context
+                ))
 
             value = res.register(self.visit(value_node, context))
             if res.should_return(): return res
@@ -3157,6 +3308,10 @@ global_symbol_table.set("is_str", BuiltInFunction.is_string)
 global_symbol_table.set("is_list", BuiltInFunction.is_list)
 global_symbol_table.set("is_function", BuiltInFunction.is_function)
 global_symbol_table.set("is_prime", BuiltInFunction.is_prime)
+global_symbol_table.set("get_value", BuiltInFunction.get_value_from_key)
+global_symbol_table.set("key", BuiltInFunction.check_key)
+global_symbol_table.set("merge", BuiltInFunction.merge)
+global_symbol_table.set("del", BuiltInFunction.remove_key_value_pairs)
 global_symbol_table.set("slice", BuiltInFunction.slice)
 global_symbol_table.set("insert", BuiltInFunction.insert)
 global_symbol_table.set("append", BuiltInFunction.append)
