@@ -149,6 +149,7 @@ TT_LTE			= 'LTE'
 TT_GTE			= 'GTE'
 TT_EOF			= 'EOF'
 TT_MOD          = 'MOD'
+TT_COLON        = 'COLON'
 TT_NEWLINE      = 'NEWLINE'
 
 KEYWORDS = [
@@ -258,6 +259,9 @@ class Lexer:
                 self.advance()
             elif self.current_char == ',':
                 tokens.append(Token(TT_COMMA, pos_start=self.pos))
+                self.advance()
+            elif self.current_char == ':':
+                tokens.append(Token(TT_COLON, pos_start=self.pos))
                 self.advance()
             elif self.current_char == '!':
                 tok, error = self.make_not_equals()
@@ -437,6 +441,12 @@ class ListNode:
     def __init__(self, element_nodes, pos_start, pos_end):
         self.element_nodes = element_nodes
 
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
+class DictionaryNode:
+    def __init__(self, key_value_pairs, pos_start, pos_end):
+        self.key_value_pairs = key_value_pairs
         self.pos_start = pos_start
         self.pos_end = pos_end
 
@@ -1173,6 +1183,11 @@ class Parser:
             if res.error: return res
             return res.success(list_expr)
 
+        elif tok.type == TT_LCURLY:
+            dictionary_expr = res.register(self.dictionary_expr())
+            if res.error: return res
+            return res.success(dictionary_expr)
+
         elif tok.matches(TT_KEYWORD, 'if'):
             if_expr = res.register(self.if_expr())
             if res.error: return res
@@ -1202,6 +1217,83 @@ class Parser:
             tok.pos_start, tok.pos_end,
             "Expected int, float, identifier, '+', '-' or '('"
         ))
+
+    def dictionary_expr(self):
+        res = ParseResult()
+        key_value_pairs = []
+        pos_start = self.current_tok.pos_start.copy()
+
+        if self.current_tok.type != TT_LCURLY:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "Expected '{'"
+            ))
+
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type == TT_RCURLY:
+            res.register_advancement()
+            self.advance()
+        else:
+            key_node = res.register(self.expr())
+            if res.error:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end,
+                    "Expected '}', 'VAR', 'IF', 'FOR', 'WHILE', 'FUN', int, float, identifier, '+', '-', '(', '[', '{' or 'NOT'"
+                ))
+
+            if self.current_tok.type != TT_COLON:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end,
+                    "Expected ':'"
+                ))
+
+            res.register_advancement()
+            self.advance()
+
+            value_node = res.register(self.expr())
+            if res.error:
+                return res
+
+            key_value_pairs.append((key_node, value_node))
+
+            while self.current_tok.type == TT_COMMA:
+                res.register_advancement()
+                self.advance()
+
+                key_node = res.register(self.expr())
+                if res.error: return res
+
+                if self.current_tok.type != TT_COLON:
+                    return res.failure(InvalidSyntaxError(
+                        self.current_tok.pos_start, self.current_tok.pos_end,
+                        "Expected ':'"
+                    ))
+
+                res.register_advancement()
+                self.advance()
+
+                value_node = res.register(self.expr())
+                if res.error: return res
+
+                key_value_pairs.append((key_node, value_node))
+
+            if self.current_tok.type != TT_RCURLY:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end,
+                    "Expected ',' or '}'"
+                ))
+
+            res.register_advancement()
+            self.advance()
+
+        return res.success(DictionaryNode(
+            key_value_pairs,
+            pos_start,
+            self.current_tok.pos_end.copy()
+        ))
+
 
     def list_expr(self):
         res = ParseResult()
@@ -1856,6 +1948,65 @@ class List(Value):
 
     def __repr__(self):
         return f'[{", ".join([str(x) for x in self.elements])}]'
+
+class Dictionary(Value):
+    def __init__(self, elements):
+        super().__init__()
+        self.elements = elements
+
+    def copy(self):
+        copy = Dictionary(self.elements)
+        copy.set_pos(self.pos_start, self.pos_end)
+        copy.set_context(self.context)
+        return copy
+
+    def dived_by(self, other):
+        key = other.value
+        if key in self.elements:
+            return self.elements[key], None
+        else:
+            return None, RTError(
+                other.pos_start, other.pos_end,
+                f"Key '{key}' not found in dictionary",
+                self.context
+            )
+
+    def added_to(self, other):
+        if isinstance(other, Dictionary):
+            combined_elements = {**self.elements, **other.elements}
+            return Dictionary(combined_elements), None
+        else:
+            return None, Value.illegal_operation(self, other)
+
+
+    def multed_by(self, other):
+        if isinstance(other, Dictionary):
+            combined_elements = {**self.elements, **other.elements}
+            return Dictionary(combined_elements), None
+        else:
+            return None, Value.illegal_operation(self, other)
+
+    def subbed_by(self, other):
+        key = other.value
+        if key in self.elements:
+            new_elements = self.elements.copy()
+            del new_elements[key]
+            return Dictionary(new_elements), None
+        else:
+            return None, RTError(
+                other.pos_start, other.pos_end,
+                f"Key '{key}' not found in dictionary",
+                self.context
+            )
+
+
+    def __str__(self):
+        return "{" + ", ".join([f'{key} : {value}' for key, value in self.elements.items()]) + "}"
+
+    def __repr__(self):
+        return "{" + ", ".join([f'{repr(key)} : {repr(value)}' for key, value in self.elements.items()]) + "}"
+
+
 
 class BaseFunction(Value):
     def __init__(self, name):
@@ -2749,6 +2900,24 @@ class Interpreter:
 
         return res.success(
             List(elements).set_context(context).set_pos(node.pos_start, node.pos_end)
+        )
+
+
+    def visit_DictionaryNode(self, node, context):
+        res = RTResult()
+        elements = {}
+
+        for key_node, value_node in node.key_value_pairs:
+            key = res.register(self.visit(key_node, context))
+            if res.should_return(): return res
+
+            value = res.register(self.visit(value_node, context))
+            if res.should_return(): return res
+
+            elements[key.value] = value
+
+        return res.success(
+            Dictionary(elements).set_context(context).set_pos(node.pos_start, node.pos_end)
         )
 
 
