@@ -1,0 +1,3 @@
+import "example.zys"
+
+print(funkyAdder(5, 6))

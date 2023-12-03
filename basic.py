@@ -169,7 +169,8 @@ KEYWORDS = [
     'continue',
     'break',
     'try',
-    'catch'
+    'catch',
+    'import'
 ]
 
 class Token:
@@ -570,6 +571,13 @@ class TryCatchNode:
         self.pos_start = self.try_body.pos_start
         self.pos_end = self.catch_body.pos_end
 
+class ImportNode:
+    def __init__(self, module_name, pos_start, pos_end):
+        self.module_name = module_name
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
+
 
 
 #######################################
@@ -701,6 +709,23 @@ class Parser:
             res.register_advancement()
             self.advance()
             return res.success(BreakNode(pos_start, self.current_tok.pos_start.copy()))
+
+        if self.current_tok.matches(TT_KEYWORD, 'import'):
+            res.register_advancement()
+            self.advance()
+
+            if self.current_tok.type != TT_STRING:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end,
+                    "Expected module name as a string"
+                ))
+
+            module_name = self.current_tok.value
+            res.register_advancement()
+            self.advance()
+
+            return res.success(ImportNode(module_name, pos_start, self.current_tok.pos_end.copy()))
+
 
         expr = res.register(self.expr())
         if res.error:
@@ -3285,6 +3310,39 @@ class Interpreter:
             if res.should_return(): return res
             return res.success(catch_result)
         return res.success(try_result)
+
+    def visit_ImportNode(self, node, context):
+        res = RTResult()
+
+        if node.module_name.endswith('.zys'):
+            try:
+                with open(node.module_name, "r") as f:
+                    module_code = f.read()
+            except Exception as e:
+                return res.failure(RTError(
+                    node.pos_start, node.pos_end,
+                    f"Failed to import module \"{node.module_name}\"\n" + str(e),
+                    context
+                ))
+
+            # Run the code of the imported module
+            _, error = run(node.module_name, module_code)
+            if error:
+                return res.failure(RTError(
+                    node.pos_start, node.pos_end,
+                    f"Failed to execute imported module \"{node.module_name}\"\n" + error.as_string(),
+                    context
+                ))
+
+            return res.success(Number.null)
+        else:
+            return res.failure(RTError(
+                node.pos_start, node.pos_end,
+                f"Script file name must ends with \".zys\" " +
+                f"but got '{node.module_name}'",
+                context
+            ))
+
 
 #######################################
 # RUN

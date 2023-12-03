@@ -44,7 +44,7 @@
 		"patterns": [
 		  {
 			"name": "keyword.control",
-			"match": "\\b(?:if|elif|else|for|while|continue|break|return|var|function|to|step|try|catch)\\b"
+			"match": "\\b(?:if|elif|else|for|while|continue|break|return|var|function|to|step|try|catch|import)\\b"
 		  },
 		  {
 			"captures": {
