@@ -1986,17 +1986,10 @@ class Dictionary(Value):
         return copy
 
     def dived_by(self, other):
-        if isinstance(other, Dictionary):
+        if isinstance(other, BaseFunction):
             return None, RTError(
                 other.pos_start, other.pos_end,
-                f"You can't use another dictionary as a key",
-                self.context
-            )
-
-        if isinstance(other, List):
-            return None, RTError(
-                other.pos_start, other.pos_end,
-                f"You can't use a list as a key",
+                f"You can only use numbers or strings as keys",
                 self.context
             )
 
@@ -2027,18 +2020,10 @@ class Dictionary(Value):
             return None, Value.illegal_operation(self, other)
 
     def subbed_by(self, other):
-
-        if isinstance(other, Dictionary):
+        if isinstance(other, BaseFunction):
             return None, RTError(
                 other.pos_start, other.pos_end,
-                f"You can't use another dictionary as a key",
-                self.context
-            )
-
-        if isinstance(other, List):
-            return None, RTError(
-                other.pos_start, other.pos_end,
-                f"You can't use a list as a key",
+                f"You can only use numbers or strings as keys",
                 self.context
             )
 
@@ -2206,19 +2191,44 @@ class BuiltInFunction(BaseFunction):
     execute_is_number.arg_names = ["value"]
 
     def execute_is_string(self, exec_ctx):
-        is_number = isinstance(exec_ctx.symbol_table.get("value"), String)
-        return RTResult().success(Number.true if is_number else Number.false)
+        is_string = isinstance(exec_ctx.symbol_table.get("value"), String)
+        return RTResult().success(Number.true if is_string else Number.false)
     execute_is_string.arg_names = ["value"]
 
     def execute_is_list(self, exec_ctx):
-        is_number = isinstance(exec_ctx.symbol_table.get("value"), List)
-        return RTResult().success(Number.true if is_number else Number.false)
+        is_list = isinstance(exec_ctx.symbol_table.get("value"), List)
+        return RTResult().success(Number.true if is_list else Number.false)
     execute_is_list.arg_names = ["value"]
 
     def execute_is_function(self, exec_ctx):
-        is_number = isinstance(exec_ctx.symbol_table.get("value"), BaseFunction)
-        return RTResult().success(Number.true if is_number else Number.false)
+        is_function = isinstance(exec_ctx.symbol_table.get("value"), BaseFunction)
+        return RTResult().success(Number.true if is_function else Number.false)
     execute_is_function.arg_names = ["value"]
+
+    def execute_is_dictionary(self, exec_ctx):
+        is_dictionary = isinstance(exec_ctx.symbol_table.get("value"), Dictionary)
+        return RTResult().success(Number.true if is_dictionary else Number.false)
+    execute_is_dictionary.arg_names = ["value"]
+
+    def execute_is_float(self, exec_ctx):
+        float_ = exec_ctx.symbol_table.get("value")
+
+        if isinstance(float_, (BaseFunction, List, Dictionary)):
+            return RTResult().success(Number.false)
+
+        is_float = isinstance(float_.value, float)
+        return RTResult().success(Number.true if is_float else Number.false)
+    execute_is_float.arg_names = ["value"]
+
+    def execute_is_integer(self, exec_ctx):
+        int_ = exec_ctx.symbol_table.get("value")
+
+        if isinstance(int_, (BaseFunction, List, Dictionary)):
+            return RTResult().success(Number.false)
+
+        is_int = isinstance(int_.value, int)
+        return RTResult().success(Number.true if is_int else Number.false)
+    execute_is_integer.arg_names = ["value"]
 
     def execute_append(self, exec_ctx):
         list_ = exec_ctx.symbol_table.get("list")
@@ -2297,7 +2307,7 @@ class BuiltInFunction(BaseFunction):
                 exec_ctx
             ))
 
-        if isinstance(key, (BuiltInFunction, Function, List, Dictionary)):
+        if isinstance(key, (BaseFunction, List, Dictionary)):
             return RTResult().failure(RTError(
                 self.pos_start, self.pos_end,
                 "You can only use numbers or strings as keys",
@@ -2343,7 +2353,7 @@ class BuiltInFunction(BaseFunction):
                 exec_ctx
             ))
 
-        if isinstance(key, (BuiltInFunction, Function, List, Dictionary)):
+        if isinstance(key, (BaseFunction, List, Dictionary)):
             return RTResult().failure(RTError(
                 self.pos_start, self.pos_end,
                 "You can only use numbers or strings as keys",
@@ -2372,7 +2382,7 @@ class BuiltInFunction(BaseFunction):
                 exec_ctx
             ))
 
-        if isinstance(key, (BuiltInFunction, Function, List, Dictionary)):
+        if isinstance(key, (BaseFunction, List, Dictionary)):
             return RTResult().failure(RTError(
                 self.pos_start, self.pos_end,
                 "You can only use numbers or strings as keys",
@@ -2553,8 +2563,8 @@ class BuiltInFunction(BaseFunction):
             ))
     execute_to_number.arg_names = ["value"]
 
-    def execute_to_intiger(self, exec_ctx):
-        """Turns a value to an intiger"""
+    def execute_to_integer(self, exec_ctx):
+        """Turns a value to an integer"""
         value = exec_ctx.symbol_table.get("value")
         if isinstance(value, Number):
             return RTResult().success(Number(int(value.value)))
@@ -2568,19 +2578,19 @@ class BuiltInFunction(BaseFunction):
             except ValueError:
                 return RTResult().failure(RTError(
                     self.pos_start, self.pos_end,
-                    f"Can't convert to intiger '{value}'",
+                    f"Can't convert to integer '{value}'",
                     exec_ctx
                 ))
         else:
             return RTResult().failure(RTError(
                 self.pos_start, self.pos_end,
-                f"Can't convert to intiger '{value}'",
+                f"Can't convert to integer '{value}'",
                 exec_ctx
             ))
-    execute_to_intiger.arg_names = ["value"]
+    execute_to_integer.arg_names = ["value"]
 
     def execute_to_float(self, exec_ctx):
-        """Turns a value to an intiger"""
+        """Turns a value to an integer"""
         value = exec_ctx.symbol_table.get("value")
         if isinstance(value, Number):
             return RTResult().success(Number(float(value.value)))
@@ -2605,7 +2615,7 @@ class BuiltInFunction(BaseFunction):
     execute_to_float.arg_names = ["value"]
 
     def execute_absolute_value(self, exec_ctx):
-        """Turns a value to an intiger"""
+        """Turns a value to an integer"""
         number_ = exec_ctx.symbol_table.get("number")
 
         if not isinstance(number_, Number):
@@ -2664,7 +2674,7 @@ class BuiltInFunction(BaseFunction):
         else:
             return RTResult().failure(RTError(
                 self.pos_start, self.pos_end,
-                f"Can only calculate the factorial of an intiger",
+                f"Can only calculate the factorial of an integer",
                 exec_ctx
             ))
 
@@ -2749,7 +2759,7 @@ class BuiltInFunction(BaseFunction):
         return RTResult().success(Number(result_))
     execute_random_float.arg_names = ["valueA", "valueB"]
 
-    def execute_random_intiger(self, exec_ctx):
+    def execute_random_integer(self, exec_ctx):
         start_ = exec_ctx.symbol_table.get("valueA")
         end_ = exec_ctx.symbol_table.get("valueB")
 
@@ -2777,7 +2787,7 @@ class BuiltInFunction(BaseFunction):
             ))
 
         return RTResult().success(Number(result_))
-    execute_random_intiger.arg_names = ["valueA", "valueB"]
+    execute_random_integer.arg_names = ["valueA", "valueB"]
 
     def execute_is_prime(self, exec_ctx):
         number_ = exec_ctx.symbol_table.get("number")
@@ -2951,6 +2961,9 @@ BuiltInFunction.is_string              = BuiltInFunction("is_string")
 BuiltInFunction.is_list                = BuiltInFunction("is_list")
 BuiltInFunction.is_function            = BuiltInFunction("is_function")
 BuiltInFunction.is_prime               = BuiltInFunction("is_prime")
+BuiltInFunction.is_dictionary          = BuiltInFunction("is_dictionary")
+BuiltInFunction.is_float               = BuiltInFunction("is_float")
+BuiltInFunction.is_integer             = BuiltInFunction("is_integer")
 BuiltInFunction.merge                  = BuiltInFunction("merge")
 BuiltInFunction.remove_key_value_pairs = BuiltInFunction("remove_key_value_pairs")
 BuiltInFunction.get_value_from_key     = BuiltInFunction("get_value_from_key")
@@ -2965,7 +2978,7 @@ BuiltInFunction.length                 = BuiltInFunction("length")
 BuiltInFunction.count                  = BuiltInFunction("count")
 BuiltInFunction.to_string              = BuiltInFunction("to_string")
 BuiltInFunction.to_number              = BuiltInFunction("to_number")
-BuiltInFunction.to_intiger             = BuiltInFunction("to_intiger")
+BuiltInFunction.to_integer             = BuiltInFunction("to_integer")
 BuiltInFunction.to_float               = BuiltInFunction("to_float")
 BuiltInFunction.absolute_value         = BuiltInFunction("absolute_value")
 BuiltInFunction.smallest_in_list       = BuiltInFunction("smallest_in_list")
@@ -2975,7 +2988,7 @@ BuiltInFunction.range                  = BuiltInFunction("range")
 BuiltInFunction.factorial              = BuiltInFunction("factorial")
 BuiltInFunction.raise_error            = BuiltInFunction("raise_error")
 BuiltInFunction.random_float           = BuiltInFunction("random_float")
-BuiltInFunction.random_intiger         = BuiltInFunction("random_intiger")
+BuiltInFunction.random_integer         = BuiltInFunction("random_integer")
 BuiltInFunction.run                    = BuiltInFunction("run")
 BuiltInFunction.quit                   = BuiltInFunction("quit")
 
@@ -3073,17 +3086,10 @@ class Interpreter:
             key = res.register(self.visit(key_node, context))
             if res.should_return(): return res
 
-            if isinstance(key, Dictionary):
+            if isinstance(key, (BaseFunction, List, Dictionary)):
                 return res.failure(RTError(
-                    key_node.pos_start, key_node.pos_end,
-                    "You can't use another dictionary as a key",
-                    context
-                ))
-
-            if isinstance(key, List):
-                return res.failure(RTError(
-                    key_node.pos_start, key_node.pos_end,
-                    "You can't use a list as a key",
+                    node.pos_start, node.pos_end,
+                    "You can only use numbers or strings as keys",
                     context
                 ))
 
@@ -3365,6 +3371,9 @@ global_symbol_table.set("is_num", BuiltInFunction.is_number)
 global_symbol_table.set("is_str", BuiltInFunction.is_string)
 global_symbol_table.set("is_list", BuiltInFunction.is_list)
 global_symbol_table.set("is_function", BuiltInFunction.is_function)
+global_symbol_table.set("is_dict", BuiltInFunction.is_dictionary)
+global_symbol_table.set("is_int", BuiltInFunction.is_integer)
+global_symbol_table.set("is_float", BuiltInFunction.is_float)
 global_symbol_table.set("is_prime", BuiltInFunction.is_prime)
 global_symbol_table.set("get_value", BuiltInFunction.get_value_from_key)
 global_symbol_table.set("key", BuiltInFunction.check_key)
@@ -3380,7 +3389,7 @@ global_symbol_table.set("len", BuiltInFunction.length)
 global_symbol_table.set("count", BuiltInFunction.count)
 global_symbol_table.set("str", BuiltInFunction.to_string)
 global_symbol_table.set("num", BuiltInFunction.to_number)
-global_symbol_table.set("int", BuiltInFunction.to_intiger)
+global_symbol_table.set("int", BuiltInFunction.to_integer)
 global_symbol_table.set("float", BuiltInFunction.to_float)
 global_symbol_table.set("abs", BuiltInFunction.absolute_value)
 global_symbol_table.set("min", BuiltInFunction.smallest_in_list)
@@ -3390,7 +3399,7 @@ global_symbol_table.set("range", BuiltInFunction.range)
 global_symbol_table.set("factorial", BuiltInFunction.factorial)
 global_symbol_table.set("raise_error", BuiltInFunction.raise_error)
 global_symbol_table.set("randfloat", BuiltInFunction.random_float)
-global_symbol_table.set("randint", BuiltInFunction.random_intiger)
+global_symbol_table.set("randint", BuiltInFunction.random_integer)
 global_symbol_table.set("run", BuiltInFunction.run)
 global_symbol_table.set("quit", BuiltInFunction.quit)
 

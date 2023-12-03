@@ -87,6 +87,39 @@ print(list) // prints [1, 2, 4]
 
 When you remove an element you are removing it by its index.
 
+## Dictionaries
+
+Dictionaries in Zyph are similar to objects in JavaScript, to create one use the curly braces:
+
+```
+var dictionary = {"key" : "value"}
+```
+to access the value form a dicitonary use this syntax:
+```
+var dictionary = {"key" : "value"}
+
+dictionary / "key" // returns "value"
+```
+
+To add more dictionaries together use the asterisk:
+
+```
+var dictionary1 = {"key1" : "value1"}
+var dictionary2 = {"key2" : "value2"}
+
+dictionary1 * dictionary2 // returns {"key1" : "value1", "key2" : "value2"}
+```
+
+Note: You can also use the + symbol to add dictionaries together but it's better to use the asterisk when merging big dictionaries and the + symbol when you are adding only a key and value to a dictionary.
+
+To remove a key and value you use the minus sign:
+
+```
+var dictionary = {"key" : "value"}
+
+dictionary - "key" // returns {}
+```
+
 ## Booleans
 
 Booleans represent true or false values. They are used to control flow within your code.
@@ -112,8 +145,8 @@ To check differences between two values you can use the operators in the languag
 
 ## Values
 
-In Zyph the avaliable values are strings, numbers (intigers or floats), lists and functions.
-I'm working to add other values like classes or objects to the language but for now this is all i got.
+In Zyph the avaliable values are strings, numbers (integers or floats), lists, dictionaries and functions.
+I'm working to add other values like classes to the language but for now this is all i got.
 
 ## Built in functions
 
@@ -130,6 +163,16 @@ is_num()
 is_str()
 is_list()
 is_function()
+is_dict()
+is_prime()
+is_int()
+is_float()
+merge()
+get_value()
+key()
+del()
+slice()
+insert()
 append()
 pop()
 extend()
@@ -143,6 +186,7 @@ float()
 abs()
 min()
 max()
+sum()
 range()
 factorial()
 raise_error()
@@ -207,6 +251,49 @@ try {
 ```
 
 As right now you can't specify the time of exception you are tring to catch but i'm currently working on it.
+
+### import
+You can use `import` statement to include other files into your program. The syntax looks like this:
+
+fistfile.zys
+```
+function foo(bar) {
+    return bar
+}
+```
+
+secondfile.zys
+
+```
+import "fistfile.zys"
+
+print foo("hello") // prints hello
+```
+
+If you wrote some code inside the fist file it will be executed when the interpreter sees the `import` keyword.
+
+fistfile.zys
+```
+print("Hello World")
+
+function foo(bar) {
+    return bar
+}
+```
+
+secondfile.zys
+
+```
+import "fistfile.zys"
+
+print foo("hello") // prints hello
+```
+
+In this case when the `import` keyword is called the program will run the fistfile.zys file and will import the `foo` function but it will also run the `print("Hello World")` statement so be careful.
+
+Note that there is no way to import specific variables or functions from another file at the moment, you will have to import all of the file to use your desired function so be careful.
+
+
 
 ### continue, break and return
 
